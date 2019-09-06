@@ -16,7 +16,6 @@ package org.apache.cassandra.jmeter.config;
  */
 
 import com.datastax.dse.driver.api.core.DseSession;
-import com.datastax.oss.driver.api.core.cql.*;
 import org.apache.jmeter.config.ConfigElement;
 import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testbeans.TestBeanHelper;
@@ -77,29 +76,8 @@ public class CassandraConnection extends AbstractTestElement
         this.setRunningVersion(true);
         TestBeanHelper.prepare(this);
         JMeterVariables variables = getThreadContext().getVariables();
-//        LoadBalancingPolicy loadBalancingPolicy = null;
-
-//        if (loadBalancer.contentEquals(DC_AWARE_ROUND_ROBIN)) {
-//            // in driver v2.0.2+, we can use the default constructor on
-//            // dcawareroundrobinpolicy
-//            if (localDataCenter.isEmpty()) {
-//                loadBalancingPolicy = new DCAwareRoundRobinPolicy();
-//            }   else {
-//                loadBalancingPolicy = new DCAwareRoundRobinPolicy(localDataCenter);
-//            }
-//        } else if (loadBalancer.contentEquals(WHITELIST)) {
-//            loadBalancingPolicy = new WhiteListPolicy(new RoundRobinPolicy(), contactPointsIS);
-//        } else if (loadBalancer.contentEquals(ROUND_ROBIN)) {
-//            loadBalancingPolicy = new RoundRobinPolicy();
-//        } else if (loadBalancer.contentEquals(DC_TOKEN_AWARE)) {
-//            loadBalancingPolicy = new TokenAwarePolicy(new DCAwareRoundRobinPolicy());
-//        } else if (loadBalancer.contentEquals(DEFAULTLOADBALANCER)) {
-//            loadBalancingPolicy = null;
-//        }
 
         DseSession session = DseSession.builder().addContactPoints(contactPointsIS).withKeyspace(keyspace).withAuthCredentials(username, password).build();
-
-//        Session session = CassandraSessionFactory.createSession(sessionName, contactPointsI, keyspace, username, password, loadBalancingPolicy);
 
         variables.putObject(sessionName, session);
     }

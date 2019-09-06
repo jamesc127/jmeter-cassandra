@@ -2,6 +2,7 @@ package org.apache.cassandra.jmeter.config;
 
 /*
  * Copyright 2014 Steven Lowenthal
+ * Updates Copyright 2019 James Colvin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +17,10 @@ package org.apache.cassandra.jmeter.config;
  * limitations under the License.
  */
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.QueryOptions;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SocketOptions;
-import com.datastax.driver.core.policies.ConstantReconnectionPolicy;
-import com.datastax.driver.core.policies.LoadBalancingPolicy;
-
+import com.datastax.dse.driver.api.core.DseSession;
 import java.net.InetAddress;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.net.InetSocketAddress;
+import java.util.*;
 
 public class CassandraSessionFactory {
 
@@ -39,12 +33,11 @@ public class CassandraSessionFactory {
   // TODO - When do we shut down a session or cluster??
 
   static CassandraSessionFactory instance;
-  final Map<String, Session> sessions = new HashMap<String, Session>();
+  final Map<String, DseSession> sessions = new HashMap<String, DseSession>();
 
   private void CassandraSessionFactory() {
 
   }
-
 
   public static synchronized CassandraSessionFactory getInstance() {
     if(instance == null) {
@@ -53,50 +46,39 @@ public class CassandraSessionFactory {
     return instance;
   }
 
-  public static synchronized Session createSession(String sessionKey, Set<InetAddress> host, String keyspace, String username, String password, LoadBalancingPolicy loadBalancingPolicy) {
-
+  public static synchronized DseSession createSession(String sessionKey, Set<InetAddress> host,
+                                                      String keyspace, String username, String password/*, LoadBalancingPolicy loadBalancingPolicy*/) {
     instance = getInstance();
-    Session session = instance.sessions.get(sessionKey);
-      if (session == null) {
-
-          Cluster.Builder cb = Cluster.builder()
-                  .addContactPoints(host)
-                  .withReconnectionPolicy(new ConstantReconnectionPolicy(10000)) ;
-
-          if (loadBalancingPolicy != null ) {
-              cb = cb.withLoadBalancingPolicy(loadBalancingPolicy);
-          }
-
-          if ( username != null && ! username.isEmpty()) {
-              cb = cb.withCredentials(username, password);
-          }
-
-          Cluster cluster = cb.build();
-
-
-          if (keyspace != null && !keyspace.isEmpty())
-        session = cluster.connect(keyspace);
-      else
-        session = cluster.connect();
-
+    DseSession session = instance.sessions.get(sessionKey);
+    Iterator<InetAddress> iHost = host.iterator();
+    Collection<InetSocketAddress> contactPoints = null;
+    while (iHost.hasNext()){
+        contactPoints.add(new InetSocketAddress(iHost.next(),9042));
+    }
+    if (session == null) {
+        if (keyspace == null && username == null && password == null)
+            session = DseSession.builder().addContactPoints(contactPoints).build();
+        else if (keyspace == null && username != null && password != null)
+            session = DseSession.builder().addContactPoints(contactPoints).withAuthCredentials(username,password).build();
+        else if (keyspace != null && username == null && password == null)
+            session = DseSession.builder().addContactPoints(contactPoints).withKeyspace(keyspace).build();
+        else session = DseSession.builder().addContactPoints(contactPoints).build();
         instance.sessions.put(sessionKey, session);
     }
     return session;
   }
 
   public static synchronized void destroyClusters() {
-      for (Session session : instance.sessions.values()) {
-          Cluster cluster = session.getCluster();
+      for (DseSession session : instance.sessions.values()) {
           session.close();
-          cluster.close();
       }
       instance.sessions.clear();
   }
 
-  public static synchronized void closeSession(Session session) {
+  public static synchronized void closeSession(DseSession session) {
 
       // Find the session
-      for (Map.Entry<String, Session> entry : instance.sessions.entrySet()) {
+      for (Map.Entry<String, DseSession> entry : instance.sessions.entrySet()) {
            if (entry.getValue() == session) {
                session.close();
                instance.sessions.remove(entry.getKey());
