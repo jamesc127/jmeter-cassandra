@@ -15,8 +15,8 @@ package org.apache.cassandra.jmeter.config;
  * limitations under the License.
  */
 
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.policies.*;
+import com.datastax.dse.driver.api.core.DseSession;
+import com.datastax.oss.driver.api.core.cql.*;
 import org.apache.jmeter.config.ConfigElement;
 import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testbeans.TestBeanHelper;
@@ -73,32 +73,33 @@ public class CassandraConnection extends AbstractTestElement
         testEnded();
     }
 
-    @SuppressWarnings("deprecation") // call to TestBeanHelper.prepare() is intentional
     public void testStarted() {
         this.setRunningVersion(true);
         TestBeanHelper.prepare(this);
         JMeterVariables variables = getThreadContext().getVariables();
-        LoadBalancingPolicy loadBalancingPolicy = null;
+//        LoadBalancingPolicy loadBalancingPolicy = null;
 
-        if (loadBalancer.contentEquals(DC_AWARE_ROUND_ROBIN)) {
-            // in driver v2.0.2+, we can use the default constructor on
-            // dcawareroundrobinpolicy
-            if (localDataCenter.isEmpty()) {
-                loadBalancingPolicy = new DCAwareRoundRobinPolicy();
-            }   else {
-                loadBalancingPolicy = new DCAwareRoundRobinPolicy(localDataCenter);
-            }
-        } else if (loadBalancer.contentEquals(WHITELIST)) {
-            loadBalancingPolicy = new WhiteListPolicy(new RoundRobinPolicy(), contactPointsIS);
-        } else if (loadBalancer.contentEquals(ROUND_ROBIN)) {
-            loadBalancingPolicy = new RoundRobinPolicy();
-        } else if (loadBalancer.contentEquals(DC_TOKEN_AWARE)) {
-            loadBalancingPolicy = new TokenAwarePolicy(new DCAwareRoundRobinPolicy());
-        } else if (loadBalancer.contentEquals(DEFAULTLOADBALANCER)) {
-            loadBalancingPolicy = null;
-        }
+//        if (loadBalancer.contentEquals(DC_AWARE_ROUND_ROBIN)) {
+//            // in driver v2.0.2+, we can use the default constructor on
+//            // dcawareroundrobinpolicy
+//            if (localDataCenter.isEmpty()) {
+//                loadBalancingPolicy = new DCAwareRoundRobinPolicy();
+//            }   else {
+//                loadBalancingPolicy = new DCAwareRoundRobinPolicy(localDataCenter);
+//            }
+//        } else if (loadBalancer.contentEquals(WHITELIST)) {
+//            loadBalancingPolicy = new WhiteListPolicy(new RoundRobinPolicy(), contactPointsIS);
+//        } else if (loadBalancer.contentEquals(ROUND_ROBIN)) {
+//            loadBalancingPolicy = new RoundRobinPolicy();
+//        } else if (loadBalancer.contentEquals(DC_TOKEN_AWARE)) {
+//            loadBalancingPolicy = new TokenAwarePolicy(new DCAwareRoundRobinPolicy());
+//        } else if (loadBalancer.contentEquals(DEFAULTLOADBALANCER)) {
+//            loadBalancingPolicy = null;
+//        }
 
-        Session session = CassandraSessionFactory.createSession(sessionName, contactPointsI, keyspace, username, password, loadBalancingPolicy);
+        DseSession session = DseSession.builder().addContactPoints(contactPointsIS).withKeyspace(keyspace).withAuthCredentials(username, password).build();
+
+//        Session session = CassandraSessionFactory.createSession(sessionName, contactPointsI, keyspace, username, password, loadBalancingPolicy);
 
         variables.putObject(sessionName, session);
     }
@@ -118,16 +119,16 @@ public class CassandraConnection extends AbstractTestElement
      * - allows CassandraSampler to be entirely independent of the pooling classes
      * - allows the pool storage mechanism to be changed if necessary
      */
-    public static Session getSession(String sessionName) {
-                return (Session) JMeterContextService.getContext().getVariables().getObject(sessionName);
+    public static DseSession getSession(String sessionName) {
+                return (DseSession) JMeterContextService.getContext().getVariables().getObject(sessionName);
      }
 
     // used to hold per-thread singleton connection pools
-    private static final ThreadLocal<Map<String, Session>> perThreadPoolMap =
-        new ThreadLocal<Map<String, Session>>(){
+    private static final ThreadLocal<Map<String, DseSession>> perThreadPoolMap =
+        new ThreadLocal<Map<String, DseSession>>(){
         @Override
-        protected Map<String, Session> initialValue() {
-            return new HashMap<String, Session>();
+        protected Map<String, DseSession> initialValue() {
+            return new HashMap<String, DseSession>();
         }
     };
 
@@ -144,7 +145,7 @@ public class CassandraConnection extends AbstractTestElement
      * @return Returns the poolname.
      */
     public String getContactPoints() {
-        return contactPoints.toString();
+        return contactPoints;
     }
 
     /**

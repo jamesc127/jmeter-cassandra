@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
  Copyright 2014 Steven Lowenthal
+ Update Copyright 2019 James Colvin
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -36,21 +37,27 @@
             <version>1.7.5</version>
             <scope>test</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.datastax.dse/dse-java-driver-core -->
         <dependency>
-            <groupId>com.datastax.cassandra</groupId>
-            <artifactId>cassandra-driver-core</artifactId>
-            <version>2.1.7.1</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>com.datastax.dse</groupId>
+            <artifactId>dse-java-driver-core</artifactId>
+            <version>2.2.0</version>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.datastax.oss</groupId>-->
+<!--            <artifactId>java-driver-core</artifactId>-->
+<!--            <version>4.2.0</version>-->
+<!--            <exclusions>-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.slf4j</groupId>-->
+<!--                    <artifactId>slf4j-api</artifactId>-->
+<!--                </exclusion>-->
+<!--            </exclusions>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.apache.jmeter</groupId>
             <artifactId>ApacheJMeter_core</artifactId>
-            <version>2.13</version>
+            <version>5.1.1</version>
             <scope>provided</scope>
             <exclusions>
                 <!-- TODO It conflicts for tests as I want to see the log - not sure on permanent fix-->
