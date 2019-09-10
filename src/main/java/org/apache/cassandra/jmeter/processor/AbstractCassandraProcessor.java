@@ -1,6 +1,7 @@
 package org.apache.cassandra.jmeter.processor;
 /*
  * Copyright 2014 Steven Lowenthal
+ * Updates Copyright 2019 James Colvin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +17,7 @@ package org.apache.cassandra.jmeter.processor;
  */
 
 import com.datastax.driver.core.Session;
+import com.datastax.dse.driver.api.core.DseSession;
 import org.apache.cassandra.jmeter.AbstractCassandaTestElement;
 import org.apache.cassandra.jmeter.config.CassandraConnection;
 import org.apache.jorphan.logging.LoggingManager;
@@ -37,7 +39,7 @@ public abstract class AbstractCassandraProcessor extends AbstractCassandaTestEle
      * Calls the native driver code to be executed.
      */
     protected void process() {
-        Session conn = null;
+        DseSession conn = null;
         if(JOrphanUtils.isBlank(getSessionName())) {
             throw new IllegalArgumentException("Variable Name must not be null in "+getName());
         }

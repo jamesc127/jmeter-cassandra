@@ -16,6 +16,11 @@ package org.apache.cassandra.jmeter;
  */
 
 import com.datastax.driver.core.*;
+import com.datastax.dse.driver.api.core.DseSession;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.cql.*;
+import com.datastax.oss.driver.api.core.data.TupleValue;
+import com.datastax.oss.driver.api.core.type.DataType;
 import org.apache.commons.collections.map.LRUMap;
 import org.apache.jmeter.save.CSVSaveService;
 import org.apache.jmeter.testelement.AbstractTestElement;
@@ -91,7 +96,8 @@ public abstract class AbstractCassandaTestElement extends AbstractTestElement im
     private Integer batchSize = 1;
 
     private String resultVariable = ""; // $NON-NLS-1$
-    private transient final BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);  // TODO - needs to be a map with stmt name
+//    private transient final BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);  // TODO - needs to be a map with stmt name
+    private transient final BatchStatement batchStatement = BatchStatement.newInstance(DefaultBatchType.UNLOGGED);
     private int batchStatmentCount = 0;
 
     /**
@@ -99,8 +105,8 @@ public abstract class AbstractCassandaTestElement extends AbstractTestElement im
      *  cache is another Map mapping the statement string to the actual PreparedStatement.
      *  At one time a Connection is only held by one thread
      */
-    private static final Map<Session, Map<String, PreparedStatement>> perConnCache =
-            new ConcurrentHashMap<Session, Map<String, PreparedStatement>>();
+    private static final Map<DseSession, Map<String, PreparedStatement>> perConnCache =
+            new ConcurrentHashMap<>();
 
     /**
      * Creates a CassandraSampler.
@@ -116,7 +122,7 @@ public abstract class AbstractCassandaTestElement extends AbstractTestElement im
      * @throws UnsupportedOperationException if the user provided incorrect query type
      */
 
-    protected byte[] execute(Session conn) throws IOException {
+    protected byte[] execute(DseSession conn) throws IOException {
         log.debug("executing cql");
 
         // Based on query return value, get results
@@ -127,7 +133,8 @@ public abstract class AbstractCassandaTestElement extends AbstractTestElement im
 
             // TODO - set page size
 
-            SimpleStatement sstmt = new SimpleStatement(getQuery());
+//            SimpleStatement sstmt = new SimpleStatement(getQuery());
+            SimpleStatement sstmt = SimpleStatement.newInstance(getQuery());
             sstmt.setConsistencyLevel(getConsistencyLevelCL());
             stmt = sstmt;
 
@@ -197,7 +204,7 @@ public abstract class AbstractCassandaTestElement extends AbstractTestElement im
             return;
         }
 
-        ColumnDefinitions colDefs = pstmt.preparedStatement().getVariables();
+        ColumnDefinitions colDefs = pstmt.getPreparedStatement().getVariableDefinitions();
 
         String[] arguments = CSVSaveService.csvSplitString(getQueryArguments(), COMMA_CHAR);
         if (arguments.length !=colDefs.size()) {
@@ -209,7 +216,7 @@ public abstract class AbstractCassandaTestElement extends AbstractTestElement im
         for (int i = 0; i < arguments.length; i++) {
             String argument = arguments[i];
 
-            DataType tp = colDefs.getType(i);
+            DataType tp = colDefs.get(i).getType();
             Class<?> javaType = tp.asJavaClass();
             try {
                 if (javaType == Integer.class)
@@ -272,12 +279,12 @@ public abstract class AbstractCassandaTestElement extends AbstractTestElement im
         }
     }
 
-    private BoundStatement getPreparedStatement(Session conn) {
+    private BoundStatement getPreparedStatement(DseSession conn) {
         return getPreparedStatement(conn,false);
     }
 
     // TODO - How thread safe is this - conn gets shared for everyone.
-    private BoundStatement getPreparedStatement(Session conn, boolean callable) {
+    private BoundStatement getPreparedStatement(DseSession conn, boolean callable) {
         Map<String, PreparedStatement> preparedStatementMap = perConnCache.get(conn);
         if (null == preparedStatementMap ) {
             @SuppressWarnings("unchecked") // LRUMap is not generic
@@ -490,9 +497,8 @@ public abstract class AbstractCassandaTestElement extends AbstractTestElement im
         return sb.toString();
     }
 
-    public static void close(Session c) {
-        int x=1;
-        // TODO - implement some sort of close
+    public static void close(DseSession c) {
+        if (!c.isClosed()) c.close();
     }
 
     public static void close(Statement s) {
@@ -615,7 +621,21 @@ public abstract class AbstractCassandaTestElement extends AbstractTestElement im
     }
 
     public ConsistencyLevel getConsistencyLevelCL() {
-        return ConsistencyLevel.valueOf(consistencyLevel);
+        ConsistencyLevel cl = null;
+        switch (consistencyLevel) {
+            case "ALL": cl = ConsistencyLevel.ALL; break;
+            case "ONE": cl = ConsistencyLevel.ONE; break;
+            case "LOCAL_ONE": cl = ConsistencyLevel.LOCAL_ONE; break;
+            case "LOCAL_QUORUM": cl = ConsistencyLevel.LOCAL_QUORUM; break;
+            case "LOCAL_SERIAL": cl = ConsistencyLevel.LOCAL_SERIAL; break;
+            case "QUORUM": cl = ConsistencyLevel.QUORUM; break;
+            case "EACH_QUORUM": cl = ConsistencyLevel.EACH_QUORUM; break;
+            case "ANY": cl = ConsistencyLevel.ANY; break;
+            case "TWO": cl = ConsistencyLevel.TWO; break;
+            case "THREE": cl = ConsistencyLevel.THREE; break;
+            default: cl = ConsistencyLevel.LOCAL_ONE;
+        }
+        return cl;
     }
 
     public void setConsistencyLevel(String consistencyLevel) {
